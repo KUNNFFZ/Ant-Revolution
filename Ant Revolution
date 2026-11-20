@@ -1,0 +1,1233 @@
+-- ===================================================================
+-- รวม 2 สคริปต์ในไฟล์เดียว: [1] MouSey Base Menu  [2] 2K Ant Evolution
+-- ===================================================================
+
+-- ===== [1] MouSey Hub | Base Menu =====
+do
+if getgenv().MouSeyBase then pcall(getgenv().MouSeyBase.Stop) end
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UIS = game:GetService("UserInputService")
+local LP = Players.LocalPlayer
+
+local Hub = {
+    Running = true,
+    Binding = false,
+    Conns = {},
+    Opts = {
+        MenuKey = Enum.KeyCode.RightShift,
+        MenuSize = Vector2.new(540, 340),
+        Notify = true,
+    },
+    Content = nil,
+}
+getgenv().MouSeyBase = Hub
+
+local MIN_W, MIN_H = 420, 260
+local MAX_W, MAX_H = 900, 640
+
+local T = {
+    bg = Color3.fromRGB(10, 10, 12),
+    panel = Color3.fromRGB(18, 18, 21),
+    line = Color3.fromRGB(42, 42, 50),
+    text = Color3.fromRGB(236, 236, 242),
+    dim = Color3.fromRGB(128, 128, 138),
+}
+
+local function track(c) table.insert(Hub.Conns, c) return c end
+
+local function new(class, props, parent)
+    local o = Instance.new(class)
+    for k, v in pairs(props) do o[k] = v end
+    if parent then o.Parent = parent end
+    return o
+end
+local function corner(p, r) return new("UICorner", { CornerRadius = UDim.new(0, r) }, p) end
+local function stroke(p, col, tr) return new("UIStroke", { Color = col or T.line, Transparency = tr or 0, Thickness = 1 }, p) end
+local function tween(o, goal, t) TweenService:Create(o, TweenInfo.new(t or 0.2, Enum.EasingStyle.Quint), goal):Play() end
+local function label(parent, text, size, pos, color, font, xa)
+    return new("TextLabel", {
+        BackgroundTransparency = 1, Size = size, Position = pos or UDim2.new(),
+        Text = text, TextColor3 = color or T.text, TextSize = 13,
+        Font = font or Enum.Font.GothamMedium, TextXAlignment = xa or Enum.TextXAlignment.Left,
+    }, parent)
+end
+
+local function getGuiParent()
+    local ok, hui = pcall(function() return gethui and gethui() end)
+    if ok and hui then return hui end
+    local ok2, cg = pcall(function() return game:GetService("CoreGui") end)
+    if ok2 and cg then return cg end
+    return LP:WaitForChild("PlayerGui")
+end
+
+local gui = new("ScreenGui", {
+    Name = "MouSeyHub", ResetOnSpawn = false,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling, IgnoreGuiInset = true,
+}, getGuiParent())
+
+local function fullSize() return UDim2.fromOffset(Hub.Opts.MenuSize.X, Hub.Opts.MenuSize.Y) end
+local minimized = false
+
+local main = new("Frame", {
+    Size = fullSize(), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundColor3 = T.bg, BorderSizePixel = 0, ClipsDescendants = true,
+}, gui)
+corner(main, 12); stroke(main)
+new("UIGradient", {
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
+    }),
+    Rotation = 90,
+}, main)
+
+local top = new("Frame", { Size = UDim2.new(1, 0, 0, 40), BackgroundTransparency = 1 }, main)
+label(top, "MouSey Hub", UDim2.new(0, 110, 1, 0), UDim2.fromOffset(16, 0), T.text, Enum.Font.GothamBold)
+local gameTitle = label(top, "[🐜] Ant Evolution", UDim2.new(1, 0, 1, 0), UDim2.fromOffset(40, 0), T.text, Enum.Font.GothamBold)
+gameTitle.TextXAlignment = Enum.TextXAlignment.Center
+gameTitle.ZIndex = 2
+new("Frame", { Size = UDim2.new(1, 0, 0, 1), Position = UDim2.fromOffset(0, 40), BackgroundColor3 = T.line, BorderSizePixel = 0 }, main)
+
+local function iconBtn(parent, txt, x)
+    local b = new("TextButton", {
+        Size = UDim2.fromOffset(26, 26), Position = UDim2.new(1, x, 0.5, -13),
+        BackgroundColor3 = T.panel, BorderSizePixel = 0, AutoButtonColor = false,
+        Text = txt, TextColor3 = T.dim, TextSize = 16, Font = Enum.Font.GothamBold,
+    }, parent)
+    corner(b, 7); stroke(b)
+    b.MouseEnter:Connect(function() tween(b, { TextColor3 = T.text }, 0.15) end)
+    b.MouseLeave:Connect(function() tween(b, { TextColor3 = T.dim }, 0.15) end)
+    return b
+end
+local minBtn = iconBtn(top, "–", -66)
+local closeBtn = iconBtn(top, "×", -34)
+
+local body = new("Frame", { Size = UDim2.new(1, 0, 1, -41), Position = UDim2.fromOffset(0, 41), BackgroundTransparency = 1 }, main)
+local side = new("Frame", { Size = UDim2.new(0, 92, 1, 0), BackgroundTransparency = 1 }, body)
+new("Frame", { Size = UDim2.new(0, 1, 1, 0), Position = UDim2.fromOffset(92, 0), BackgroundColor3 = T.line, BorderSizePixel = 0 }, body)
+
+-- NOTE: content scale is no longer driven by window size (avoids overshooting)
+local content = new("Frame", { Size = UDim2.new(1, -92, 1, 0), Position = UDim2.fromOffset(92, 0), BackgroundTransparency = 1, ClipsDescendants = true }, body)
+Hub.Content = content
+
+local pfp = new("ImageLabel", {
+    Size = UDim2.fromOffset(40, 40), Position = UDim2.new(0.5, -20, 0, 6),
+    BackgroundColor3 = T.panel, BorderSizePixel = 0,
+}, side)
+corner(pfp, 20); stroke(pfp)
+task.spawn(function()
+    local ok, img = pcall(Players.GetUserThumbnailAsync, Players, LP.UserId,
+        Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+    if ok then pfp.Image = img end
+end)
+local pfpName = label(side, LP.Name, UDim2.new(1, 0, 0, 12), UDim2.fromOffset(0, 50), T.dim, Enum.Font.Gotham, Enum.TextXAlignment.Center)
+pfpName.TextSize = 10
+pfpName.TextTruncate = Enum.TextTruncate.AtEnd
+
+local dragging, dragStart, startPos
+top.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging, dragStart, startPos = true, i.Position, main.Position
+    end
+end)
+track(UIS.InputChanged:Connect(function(i)
+    if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+        local d = i.Position - dragStart
+        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+    end
+end))
+track(UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end))
+
+local grip = new("TextButton", {
+    Size = UDim2.fromOffset(16, 16), AnchorPoint = Vector2.new(1, 1),
+    Position = UDim2.new(1, -2, 1, -2), BackgroundTransparency = 1,
+    Text = "◢", TextColor3 = T.dim, TextSize = 12, Font = Enum.Font.GothamBold,
+    AutoButtonColor = false, ZIndex = 20,
+}, main)
+local resizing, rStart, rSize
+grip.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        resizing, rStart, rSize = true, i.Position, Hub.Opts.MenuSize
+    end
+end)
+track(UIS.InputChanged:Connect(function(i)
+    if resizing and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+        local d = i.Position - rStart
+        Hub.Opts.MenuSize = Vector2.new(
+            math.clamp(rSize.X + d.X, MIN_W, MAX_W),
+            math.clamp(rSize.Y + d.Y, MIN_H, MAX_H))
+        if not minimized then main.Size = fullSize() end
+    end
+end))
+track(UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        resizing = false
+    end
+end))
+
+minBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    body.Visible = not minimized
+    grip.Visible = not minimized
+    minBtn.Text = minimized and "+" or "–"
+    tween(main, { Size = minimized and UDim2.fromOffset(Hub.Opts.MenuSize.X, 40) or fullSize() }, 0.25)
+end)
+
+closeBtn.MouseButton1Click:Connect(function() Hub.Stop() end)
+
+track(UIS.InputBegan:Connect(function(i, gp)
+    if gp or Hub.Binding then return end
+    if i.KeyCode == Hub.Opts.MenuKey then
+        main.Visible = not main.Visible
+    end
+end))
+
+local float = new("TextButton", {
+    Size = UDim2.fromOffset(44, 44), Position = UDim2.new(0, 16, 0.5, -22),
+    BackgroundColor3 = T.bg, BorderSizePixel = 0, AutoButtonColor = false,
+    Text = "M", TextColor3 = T.text, TextSize = 18, Font = Enum.Font.GothamBold, ZIndex = 50,
+}, gui)
+corner(float, 10); stroke(float)
+
+local fDrag, fStart, fPos, fMoved = false, nil, nil, false
+float.InputBegan:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        fDrag, fStart, fPos, fMoved = true, i.Position, float.Position, false
+    end
+end)
+track(UIS.InputChanged:Connect(function(i)
+    if fDrag and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+        local d = i.Position - fStart
+        if math.abs(d.X) + math.abs(d.Y) > 4 then fMoved = true end
+        float.Position = UDim2.new(fPos.X.Scale, fPos.X.Offset + d.X, fPos.Y.Scale, fPos.Y.Offset + d.Y)
+    end
+end))
+track(UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+        if fDrag and not fMoved then main.Visible = not main.Visible end
+        fDrag = false
+    end
+end))
+
+local notifyHolder = new("Frame", {
+    Size = UDim2.fromOffset(280, 0), AnchorPoint = Vector2.new(1, 1),
+    Position = UDim2.new(1, -16, 1, -16), BackgroundTransparency = 1,
+    AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 200,
+}, gui)
+new("UIListLayout", {
+    Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder,
+    VerticalAlignment = Enum.VerticalAlignment.Bottom,
+}, notifyHolder)
+
+local notifyOrder = 0
+function Hub.Notify(_, o)
+    if type(o) ~= "table" or Hub.Opts.Notify == false then return end
+    notifyOrder = notifyOrder + 1
+    local card = new("Frame", {
+        Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = T.panel, BorderSizePixel = 0, LayoutOrder = -notifyOrder, ZIndex = 200,
+    }, notifyHolder)
+    corner(card, 8); stroke(card)
+    new("UIPadding", {
+        PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8),
+        PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10),
+    }, card)
+    new("UIListLayout", { Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder }, card)
+    local title = label(card, tostring(o.Title or ""), UDim2.new(1, 0, 0, 14), nil, T.text, Enum.Font.GothamBold)
+    title.ZIndex = 201
+    local text = label(card, tostring(o.Text or ""), UDim2.new(1, 0, 0, 0), nil, T.dim, Enum.Font.Gotham)
+    text.AutomaticSize = Enum.AutomaticSize.Y
+    text.TextWrapped = true
+    text.ZIndex = 201
+    task.delay(tonumber(o.Duration) or 3, function()
+        if card and card.Parent then
+            tween(card, { BackgroundTransparency = 1 }, 0.3)
+            task.wait(0.3)
+            pcall(function() card:Destroy() end)
+        end
+    end)
+end
+
+task.spawn(function()
+    while Hub.Running do
+        if not (gui and gui.Parent) then
+            gui = new("ScreenGui", {
+                Name = "MouSeyHub", ResetOnSpawn = false,
+                ZIndexBehavior = Enum.ZIndexBehavior.Sibling, IgnoreGuiInset = true,
+            }, getGuiParent())
+            main.Parent = gui
+            float.Parent = gui
+            notifyHolder.Parent = gui
+        end
+        task.wait(1)
+    end
+end)
+
+local function playIntro()
+    local introLabel = new("TextLabel", {
+        Size = UDim2.fromOffset(600, 120), Position = UDim2.fromScale(0.5, 0.5),
+        AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1,
+        Text = "MouSey", TextColor3 = T.text, TextSize = 100, Font = Enum.Font.GothamBold,
+        TextTransparency = 1, ZIndex = 100,
+    }, gui)
+    local scale = new("UIScale", { Scale = 0.8 }, introLabel)
+    local glow = new("UIStroke", {
+        Color = Color3.fromRGB(255, 255, 255), Thickness = 6,
+        Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, introLabel)
+    local glow2 = new("UIStroke", {
+        Color = Color3.fromRGB(180, 220, 255), Thickness = 14,
+        Transparency = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+    }, introLabel)
+
+    main.Visible = false
+    float.Visible = false
+
+    tween(introLabel, { TextTransparency = 0 }, 1)
+    tween(scale, { Scale = 1 }, 0.5)
+    tween(glow, { Transparency = 0.2 }, 0.8)
+    tween(glow2, { Transparency = 0.6 }, 0.8)
+    task.wait(0.8)
+    for _ = 1, 3 do
+        tween(glow2, { Transparency = 0.8 }, 0.35)
+        task.wait(0.35)
+        tween(glow2, { Transparency = 0.5 }, 0.35)
+        task.wait(0.35)
+    end
+    tween(glow, { Transparency = 1 }, 0.5)
+    tween(glow2, { Transparency = 1 }, 0.5)
+    tween(introLabel, { TextTransparency = 1 }, 0.8)
+    tween(scale, { Scale = 1.1 }, 0.6)
+    task.wait(0.6)
+    introLabel:Destroy()
+
+    main.Visible = true
+    float.Visible = true
+    local mainScale = main:FindFirstChildOfClass("UIScale") or new("UIScale", { Scale = 0.9 }, main)
+    mainScale.Scale = 0.9
+    tween(mainScale, { Scale = 1 }, 0.35)
+end
+
+function Hub.Stop()
+    Hub.Running = false
+    for _, c in ipairs(Hub.Conns) do pcall(function() c:Disconnect() end) end
+    Hub.Conns = {}
+    pcall(function() gui:Destroy() end)
+    if getgenv().MouSeyBase == Hub then getgenv().MouSeyBase = nil end
+end
+
+task.spawn(function() pcall(playIntro) end)
+end -- ===== จบ [1] =====
+
+-- ===== [2] 2K | Ant Evolution =====
+do
+if getgenv().TwoK then pcall(getgenv().TwoK.Stop) end
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+local CS = game:GetService("CollectionService")
+local WS = game:GetService("Workspace")
+local P = Players.LocalPlayer
+local Remotes = RS:FindFirstChild("AntRemotes")
+
+local MouseyBase = getgenv().MouSeyBase
+if not MouseyBase or not MouseyBase.Content then
+    warn("[2K] ยังไม่มี MouSey base menu ให้รัน base ก่อน")
+    return
+end
+
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local C = {
+    panel = Color3.fromRGB(18, 18, 21), line = Color3.fromRGB(42, 42, 50),
+    text = Color3.fromRGB(236, 236, 242), dim = Color3.fromRGB(128, 128, 138),
+    off = Color3.fromRGB(52, 52, 60), on = Color3.fromRGB(246, 246, 250),
+    bg = Color3.fromRGB(10, 10, 12),
+}
+local uiConns = {}
+local function mk(class, props, parent)
+    local o = Instance.new(class)
+    for k, v in pairs(props) do o[k] = v end
+    if parent then o.Parent = parent end
+    return o
+end
+local function rnd(p, r) mk("UICorner", { CornerRadius = UDim.new(0, r) }, p) end
+local function strk(p) mk("UIStroke", { Color = C.line, Thickness = 1 }, p) end
+local function tw(o, goal, t)
+    TweenService:Create(o, TweenInfo.new(t or 0.15, Enum.EasingStyle.Quint), goal):Play()
+end
+local function lbl(parent, text, size, pos, color, font, xa)
+    return mk("TextLabel", {
+        BackgroundTransparency = 1, Size = size, Position = pos or UDim2.new(), Text = text,
+        TextColor3 = color or C.text, TextSize = 13, Font = font or Enum.Font.GothamMedium,
+        TextXAlignment = xa or Enum.TextXAlignment.Left,
+    }, parent)
+end
+
+local uiRoot = mk("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, MouseyBase.Content)
+local tabBar = mk("Frame", { Size = UDim2.new(1, -12, 0, 26), Position = UDim2.fromOffset(6, 6), BackgroundTransparency = 1 }, uiRoot)
+mk("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, tabBar)
+local pageHolder = mk("Frame", { Size = UDim2.new(1, -12, 1, -74), Position = UDim2.fromOffset(6, 38), BackgroundTransparency = 1, ClipsDescendants = true }, uiRoot)
+local statusLbl = mk("TextLabel", {
+    BackgroundTransparency = 1, Size = UDim2.new(1, -12, 0, 30), Position = UDim2.new(0, 6, 1, -34),
+    Text = "-", TextColor3 = C.dim, Font = Enum.Font.Gotham, TextSize = 10, TextWrapped = true,
+    TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+}, uiRoot)
+
+local tabs, tabCount, activeTab = {}, 0, nil
+local function selectTab(name)
+    for n, t in pairs(tabs) do
+        local on = (n == name)
+        t.page.Visible = on
+        tw(t.btn, { BackgroundColor3 = on and C.panel or C.bg, TextColor3 = on and C.text or C.dim }, 0.15)
+    end
+    activeTab = name
+end
+
+local function newSection(page, title)
+    local order = 0
+    local function nextOrder() order += 1; return order end
+    local card = mk("Frame", {
+        Size = UDim2.new(1, -6, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = C.panel, BorderSizePixel = 0, LayoutOrder = nextOrder() + 1000,
+    }, page)
+    rnd(card, 10); strk(card)
+    mk("UIPadding", {
+        PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8),
+        PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10),
+    }, card)
+    mk("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, card)
+    lbl(card, title, UDim2.new(1, 0, 0, 14), nil, C.dim, Enum.Font.GothamBold).LayoutOrder = 0
+
+    local sec = {}
+
+    function sec:Toggle(opt)
+        local state = opt.Default == true
+        local row = mk("TextButton", {
+            Size = UDim2.new(1, 0, 0, 22), BackgroundTransparency = 1, Text = "",
+            AutoButtonColor = false, LayoutOrder = nextOrder(),
+        }, card)
+        lbl(row, opt.Name or "", UDim2.new(1, -50, 1, 0))
+        local glow = mk("Frame", {
+            Size = UDim2.fromOffset(46, 26), AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, 5, 0.5, 0), BackgroundColor3 = C.on,
+            BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 1,
+        }, row)
+        rnd(glow, 13)
+        local track = mk("Frame", {
+            Size = UDim2.fromOffset(36, 18), AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, 0, 0.5, 0), BackgroundColor3 = C.off, BorderSizePixel = 0, ZIndex = 2,
+        }, row)
+        rnd(track, 9)
+        local knob = mk("Frame", { Size = UDim2.fromOffset(14, 14), BackgroundColor3 = C.dim, BorderSizePixel = 0, ZIndex = 3 }, track)
+        rnd(knob, 7)
+        local function render(anim)
+            local t = anim and 0.15 or 0
+            tw(track, { BackgroundColor3 = state and C.on or C.off }, t)
+            tw(knob, {
+                Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7),
+                BackgroundColor3 = state and C.bg or C.dim,
+            }, t)
+            tw(glow, { BackgroundTransparency = state and 0.86 or 1 }, t)
+        end
+        render(false)
+        row.MouseButton1Click:Connect(function()
+            state = not state
+            render(true)
+            if opt.Callback then opt.Callback(state) end
+        end)
+    end
+
+    function sec:Slider(opt)
+        local mn, mx, step = opt.Min, opt.Max, opt.Step or 1
+        local v = opt.Default or mn
+        local suffix = opt.Suffix or ""
+        local dec = (step < 0.1) and 2 or ((step < 1) and 1 or 0)
+        local function fmt(x) return string.format("%." .. dec .. "f", x) .. suffix end
+        local function pct(x) return (x - mn) / math.max(1e-9, mx - mn) end
+        local row = mk("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, LayoutOrder = nextOrder() }, card)
+        lbl(row, opt.Name or "", UDim2.new(1, -90, 0, 14))
+        local valL = lbl(row, fmt(v), UDim2.new(0, 86, 0, 14), UDim2.new(1, -86, 0, 0), C.dim, Enum.Font.Gotham, Enum.TextXAlignment.Right)
+        local bar = mk("Frame", { Size = UDim2.new(1, 0, 0, 4), Position = UDim2.fromOffset(0, 22), BackgroundColor3 = C.off, BorderSizePixel = 0 }, row)
+        rnd(bar, 2)
+        local fill = mk("Frame", { Size = UDim2.fromScale(pct(v), 1), BackgroundColor3 = C.on, BorderSizePixel = 0 }, bar)
+        rnd(fill, 2)
+        local knob = mk("Frame", {
+            Size = UDim2.fromOffset(10, 10), AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromScale(pct(v), 0.5), BackgroundColor3 = C.on, BorderSizePixel = 0,
+        }, bar)
+        rnd(knob, 5)
+        local hit = mk("TextButton", {
+            Size = UDim2.new(1, 0, 0, 16), Position = UDim2.fromOffset(0, 14),
+            BackgroundTransparency = 1, Text = "", AutoButtonColor = false,
+        }, row)
+        local dragging = false
+        local function set(px)
+            local rel = math.clamp((px - bar.AbsolutePosition.X) / math.max(1, bar.AbsoluteSize.X), 0, 1)
+            local x = math.floor((mn + (mx - mn) * rel) / step + 0.5) * step
+            x = tonumber(string.format("%.4f", math.clamp(x, mn, mx)))
+            fill.Size = UDim2.fromScale(pct(x), 1)
+            knob.Position = UDim2.fromScale(pct(x), 0.5)
+            valL.Text = fmt(x)
+            if opt.Callback then opt.Callback(x) end
+        end
+        hit.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                set(i.Position.X)
+            end
+        end)
+        table.insert(uiConns, UIS.InputChanged:Connect(function(i)
+            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                set(i.Position.X)
+            end
+        end))
+        table.insert(uiConns, UIS.InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end))
+    end
+
+    function sec:Dropdown(opt)
+        local opts = opt.Options or {}
+        local idx = 1
+        for i, o in ipairs(opts) do if o == opt.Default then idx = i end end
+        local row = mk("Frame", { Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, LayoutOrder = nextOrder() }, card)
+        lbl(row, opt.Name or "", UDim2.new(1, -136, 1, 0))
+        local btn = mk("TextButton", {
+            Size = UDim2.new(0, 128, 1, 0), AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0),
+            BackgroundColor3 = C.bg, BorderSizePixel = 0, AutoButtonColor = false,
+            Text = (opts[idx] or "-") .. "  ▾", TextColor3 = C.text, TextSize = 11,
+            Font = Enum.Font.GothamMedium, TextTruncate = Enum.TextTruncate.AtEnd,
+        }, row)
+        rnd(btn, 7); strk(btn)
+        btn.MouseButton1Click:Connect(function()
+            if #opts == 0 then return end
+            idx = idx % #opts + 1
+            btn.Text = opts[idx] .. "  ▾"
+            if opt.Callback then opt.Callback(opts[idx]) end
+        end)
+    end
+
+    function sec:Button(opt)
+        local b = mk("TextButton", {
+            Size = UDim2.new(1, 0, 0, 26), BackgroundColor3 = C.bg, BorderSizePixel = 0,
+            AutoButtonColor = false, Text = opt.Name or "", TextColor3 = C.text, TextSize = 12,
+            Font = Enum.Font.GothamMedium, LayoutOrder = nextOrder(),
+        }, card)
+        rnd(b, 7); strk(b)
+        b.MouseEnter:Connect(function() tw(b, { TextColor3 = C.on }) end)
+        b.MouseLeave:Connect(function() tw(b, { TextColor3 = C.text }) end)
+        b.MouseButton1Click:Connect(function() if opt.Callback then opt.Callback() end end)
+    end
+
+    function sec:Label(text)
+        local l = lbl(card, tostring(text), UDim2.new(1, 0, 0, 0), nil, C.dim, Enum.Font.Gotham)
+        l.TextSize = 11
+        l.TextWrapped = true
+        l.AutomaticSize = Enum.AutomaticSize.Y
+        l.LayoutOrder = nextOrder()
+        return l
+    end
+
+    return sec
+end
+
+local UI = {}
+function UI:SetTitle(_) end
+function UI:Notify(o) if MouseyBase.Notify then MouseyBase:Notify(o) end end
+function UI:SetStatus(s) statusLbl.Text = tostring(s) end
+function UI:AddSettingsTab() end
+function UI:Toggle(_) end
+function UI:Destroy()
+    for _, c in ipairs(uiConns) do pcall(function() c:Disconnect() end) end
+    uiConns = {}
+    pcall(function() uiRoot:Destroy() end)
+end
+function UI:Tab(name)
+    tabCount += 1
+    local btn = mk("TextButton", {
+        AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = C.bg, BorderSizePixel = 0, AutoButtonColor = false,
+        Text = name, TextColor3 = C.dim, TextSize = 12, Font = Enum.Font.GothamBold,
+        LayoutOrder = tabCount,
+    }, tabBar)
+    rnd(btn, 7)
+    mk("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }, btn)
+    local page = mk("ScrollingFrame", {
+        Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0,
+        ScrollBarThickness = 2, ScrollBarImageColor3 = C.line,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(), Visible = false,
+    }, pageHolder)
+    mk("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, page)
+    tabs[name] = { btn = btn, page = page }
+    btn.MouseButton1Click:Connect(function() selectTab(name) end)
+    if not activeTab then selectTab(name) end
+    local tabObj = {}
+    function tabObj:Section(title) return newSection(page, title) end
+    return tabObj
+end
+
+-- ===== logic (verbatim) =====
+local Config = nil
+do
+    local ok, m = pcall(function() return require(RS.Ant.Config) end)
+    if ok and type(m) == "table" then Config = m end
+end
+local MaxStage = (Config and tonumber(Config.MaxStage)) or 29
+local RollCost = (Config and tonumber(Config.RollCostDna)) or 120
+
+local function speciesName(stage)
+    if Config and Config.SpeciesAt then
+        local ok, sp = pcall(function() return Config.SpeciesAt(stage) end)
+        if ok and type(sp) == "table" and sp.name then return tostring(sp.name) end
+    end
+    return "?"
+end
+
+local CRITTERS, critterSeen = {}, {}
+local function addCritter(k)
+    if k == nil then return end
+    k = tostring(k)
+    if k == "" or critterSeen[k] then return end
+    critterSeen[k] = true
+    CRITTERS[#CRITTERS + 1] = k
+end
+if Config and type(Config.Critters) == "table" then
+    for k in pairs(Config.Critters) do addCritter(k) end
+end
+for _, m in ipairs(CS:GetTagged("Creature")) do
+    if m:IsA("Model") and m:GetAttribute("IsCritter") == true then
+        addCritter(m:GetAttribute("Species") or m.Name)
+    end
+end
+table.sort(CRITTERS)
+
+local EGGS, EGG_LABELS, EGG_BY_LABEL = {}, {}, {}
+if Config and type(Config.Pets) == "table" and type(Config.Pets.Eggs) == "table" then
+    for _, e in ipairs(Config.Pets.Eggs) do
+        local cost = tonumber(e.cost)
+        if cost and e.key then
+            local key = tostring(e.key)
+            local label = string.format("%s (%d DNA)", tostring(e.name or key), cost)
+            EGGS[#EGGS + 1] = { key = key, name = tostring(e.name or key), cost = cost, label = label }
+            EGG_LABELS[#EGG_LABELS + 1] = label
+            EGG_BY_LABEL[label] = EGGS[#EGGS]
+        end
+    end
+end
+if #EGGS == 0 then
+    EGGS = { { key = "Colony", name = "COLONY EGG", cost = 400, label = "COLONY EGG (400 DNA)" },
+             { key = "Royal", name = "ROYAL EGG", cost = 3000, label = "ROYAL EGG (3000 DNA)" } }
+    for _, e in ipairs(EGGS) do EGG_LABELS[#EGG_LABELS + 1] = e.label; EGG_BY_LABEL[e.label] = e end
+end
+
+local RARITY_RANK = { Common=1, Uncommon=2, Rare=3, Epic=4, Legendary=5, Mythic=6, Secret=7 }
+local RARITY_OPTIONS = { "ไม่หยุด", "Common+", "Uncommon+", "Rare+", "Epic+", "Legendary+", "Mythic+", "Secret" }
+local RARITY_MIN = { ["Common+"]=1, ["Uncommon+"]=2, ["Rare+"]=3, ["Epic+"]=4, ["Legendary+"]=5, ["Mythic+"]=6, ["Secret"]=7 }
+
+local Hub = {
+    Running = true, Conns = {}, Selected = {},
+    Flags = {
+        Farm = false, Delay = 0.05, Settle = 0.15, Manual = false, Radius = 12,
+        AutoEvolve = false, EvInterval = 0.75, EvMargin = 0,
+        Claim = false, ClaimEvery = 60, ClaimGap = 1,
+        ClaimDaily = true, ClaimQuests = true, ClaimRecords = true,
+        AutoRebirth = false, RbGap = 5,
+        Combat = false, CbMode = "HP ต่ำกว่า", CbRatio = 1, CbPriority = "ใกล้สุด",
+        CbRange = 250, CbGap = 0.6, CbWarp = true, CbPauseFarm = true,
+        CbBots = true, CbCritters = true, CbPlayers = false,
+        BuyEgg = false, EggKey = EGGS[1].key, EggInterval = 1.5,
+        AutoEquipBest = false,
+        AutoRoll = false, RollCount = 1, RollInterval = 1.2, RollReserve = 0, RollStop = "ไม่หยุด",
+    },
+    Stats = { warps = 0, evolves = 0, hits = 0, kills = 0, claims = 0, rebirths = 0, eggs = 0,
+              equips = 0, rolls = 0, rollNew = 0, rollRefund = 0 },
+    Msg = { Orb = "-", Ev = "-", Cb = "-", Claim = "-", Rb = "-", Egg = "-", Equip = "-", Roll = "-" },
+    EvHoldUntil = 0, SlowUntil = 0,
+}
+getgenv().TwoK = Hub
+
+Hub.UI = UI
+UI:SetTitle("2K | Ant Evolution")
+
+local function pushConn(c) Hub.Conns[#Hub.Conns + 1] = c; return c end
+
+local function getHRP()
+    local ch = P.Character
+    local hrp = ch and ch:FindFirstChild("HumanoidRootPart")
+    if hrp and hrp:IsA("BasePart") then return ch, hrp end
+    return nil, nil
+end
+
+local function warpTo(hrp, pos, hold)
+    local cf = CFrame.new(pos + Vector3.new(0, 2.5, 0))
+    local t0 = os.clock()
+    repeat
+        if not hrp or not hrp.Parent then return end
+        hrp.CFrame = cf
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+        task.wait()
+    until os.clock() - t0 > (hold or 0.05)
+end
+
+local S = { t2 = nil, rejected = {}, skipped = {} }
+local function findState()
+    if S.t2 and type(S.t2.orbs) == "table" then return S.t2 end
+    local best, bestN = nil, -1
+    for _, v in pairs(getgc(true)) do
+        if type(v) == "table" then
+            local orbs = rawget(v, "orbs")
+            if type(orbs) == "table" and type(rawget(v, "pending")) == "table"
+                and type(rawget(v, "queue")) == "table" and type(rawget(v, "flights")) == "table" then
+                local n = 0
+                for _ in pairs(orbs) do n += 1; if n > 3000 then break end end
+                if n > bestN then bestN, best = n, v end
+            end
+        end
+    end
+    S.t2 = best
+    return best
+end
+
+pushConn((function()
+    local rej = Remotes and Remotes:FindFirstChild("CollectReject")
+    if not rej then return { Disconnect = function() end } end
+    return rej.OnClientEvent:Connect(function(ids)
+        if type(ids) == "table" then for _, id in ipairs(ids) do S.rejected[id] = true end end
+    end)
+end)())
+
+local Evolve = Remotes and Remotes:FindFirstChild("Evolve")
+local function evolveOnce()
+    if not Evolve then return false, "ไม่พบ remote Evolve" end
+    local ok, res = pcall(function() return Evolve:InvokeServer() end)
+    if not ok then return false, "err: " .. tostring(res) end
+    if type(res) == "table" then
+        if res.ok then
+            Hub.Stats.evolves += 1
+            Hub.EvHoldUntil = os.clock() + 3
+            return true, "สำเร็จ -> Stage " .. tostring(P:GetAttribute("Stage"))
+        end
+        local msg = tostring(res.msg or "ไม่สำเร็จ")
+        if msg:lower():find("slow") then Hub.SlowUntil = os.clock() + 2.5 end
+        return false, msg
+    end
+    return false, tostring(res)
+end
+
+task.spawn(function()
+    while Hub.Running do
+        if Hub.Flags.AutoEvolve then
+            pcall(function()
+                if os.clock() < (Hub.SlowUntil or 0) then Hub.Msg.Ev = "รอ cooldown (Slow down!)" return end
+                if P:GetAttribute("Dead") == true then Hub.Msg.Ev = "รอเกิดใหม่..." return end
+                local stage = tonumber(P:GetAttribute("Stage")) or 1
+                local pow = tonumber(P:GetAttribute("Power")) or 0
+                local need = tonumber(P:GetAttribute("Need")) or 0
+                if stage >= MaxStage then Hub.Msg.Ev = "ถึง Stage สูงสุดแล้ว" return end
+                if need <= 0 then return end
+                if pow < need * (1 + (Hub.Flags.EvMargin or 0) / 100) then
+                    Hub.Msg.Ev = string.format("รอ Power %.0f/%.0f", pow, need); return
+                end
+                local _, msg = evolveOnce(); Hub.Msg.Ev = msg
+            end)
+        end
+        task.wait(math.max(0.3, Hub.Flags.EvInterval or 0.75))
+    end
+end)
+
+local Rebirth = Remotes and Remotes:FindFirstChild("Rebirth")
+local RB = { nextAt = 0 }
+local function myRebirths()
+    local v = tonumber(P:GetAttribute("Rebirths"))
+    if not v then
+        local ls = P:FindFirstChild("leaderstats")
+        local r = ls and ls:FindFirstChild("Rebirths")
+        v = r and r.Value
+    end
+    return math.max(0, math.floor(tonumber(v) or 0))
+end
+local function topStageFor(rebirths)
+    if Config and Config.TopStage then
+        local ok, v = pcall(function() return Config.TopStage(rebirths) end)
+        if ok and tonumber(v) then return tonumber(v) end
+    end
+    return MaxStage
+end
+local function rebirthReady()
+    local rb = myRebirths()
+    local target = topStageFor(rb)
+    local stage = tonumber(P:GetAttribute("Stage")) or 1
+    local pow = tonumber(P:GetAttribute("Power")) or 0
+    local need = tonumber(P:GetAttribute("Need")) or 0
+    return stage >= target and need > 0 and pow >= need, rb, target, stage, pow, need
+end
+task.spawn(function()
+    while Hub.Running do
+        if Hub.Flags.AutoRebirth then
+            pcall(function()
+                if os.clock() < (RB.nextAt or 0) then return end
+                if P:GetAttribute("Dead") == true then Hub.Msg.Rb = "รอเกิดใหม่..." return end
+                local ready, rb, target, stage, pow, need = rebirthReady()
+                if not ready then
+                    if stage < target then Hub.Msg.Rb = string.format("ต้องถึง Stage %d ก่อน (มี %d)", target, stage)
+                    else Hub.Msg.Rb = string.format("รอ Power %.0f/%.0f", pow, need) end
+                    return
+                end
+                if not Rebirth then Hub.Msg.Rb = "ไม่พบ remote Rebirth" return end
+                local ok, res = pcall(function() return Rebirth:InvokeServer() end)
+                RB.nextAt = os.clock() + math.max(2, Hub.Flags.RbGap or 5)
+                if not ok then Hub.Msg.Rb = "err: " .. tostring(res) return end
+                if type(res) == "table" then
+                    if res.ok then
+                        Hub.Stats.rebirths += 1
+                        Hub.EvHoldUntil = os.clock() + 3
+                        Hub.Msg.Rb = "สำเร็จ! Rebirths = " .. tostring(myRebirths())
+                    else Hub.Msg.Rb = tostring(res.msg or "ไม่สำเร็จ") end
+                else Hub.Msg.Rb = tostring(res) end
+            end)
+        end
+        task.wait(1)
+    end
+end)
+
+local CL = { nextAt = 0 }
+local function invoke(name, ...)
+    if not Remotes then return false, "no remotes" end
+    local r = Remotes:FindFirstChild(name)
+    if not r then return false, "missing " .. tostring(name) end
+    local args = table.pack(...)
+    local ok, res = pcall(function() return r:InvokeServer(table.unpack(args, 1, args.n)) end)
+    if not ok then return false, tostring(res) end
+    return true, res
+end
+local function claimPass()
+    local got, notes = 0, {}
+    local gap = math.max(0.4, Hub.Flags.ClaimGap or 1)
+    local function note(s) if #notes < 6 then notes[#notes + 1] = tostring(s) end end
+    if Hub.Flags.ClaimDaily then
+        local ok, res = invoke("ClaimDaily")
+        if ok and type(res) == "table" then
+            if res.ok then got += 1; note("Daily") else note(res.msg) end
+        end
+        task.wait(gap)
+        for i = 1, 10 do
+            local ok2, r2 = invoke("ClaimPlaytime", i)
+            if not ok2 or type(r2) ~= "table" then break end
+            if r2.ok then got += 1; note("Play " .. i)
+            elseif tostring(r2.msg or ""):find("Ready in") then break end
+            task.wait(gap)
+        end
+    end
+    if Hub.Flags.ClaimQuests then
+        for i = 1, 3 do
+            local ok3, r3 = invoke("ClaimQuest", i)
+            if ok3 and type(r3) == "table" and r3.ok then got += 1; note("Q" .. i) end
+            task.wait(gap)
+        end
+        local ok4, r4 = invoke("ClaimQuest", "bonus")
+        if ok4 and type(r4) == "table" and r4.ok then got += 1; note("Q bonus") end
+        task.wait(gap)
+    end
+    if Hub.Flags.ClaimRecords then
+        local keys = {}
+        if Config and type(Config.RecordByKey) == "table" then
+            for k in pairs(Config.RecordByKey) do keys[#keys + 1] = k end
+        else
+            keys = { "food", "grow", "evolve", "rebirth", "ants", "bugs", "boss",
+                "mutate", "roll", "pets", "eggs", "sugar", "feast", "play" }
+        end
+        for _, k in ipairs(keys) do
+            local ok5, r5 = invoke("ClaimRecord", k)
+            if ok5 and type(r5) == "table" and r5.ok then got += 1; note(k) end
+            task.wait(gap)
+        end
+    end
+    Hub.Stats.claims += got
+    Hub.Msg.Claim = (got > 0) and ("เคลมได้ " .. got .. " : " .. table.concat(notes, ", "))
+        or ("ไม่มีอะไรให้เคลม " .. table.concat(notes, ", "))
+end
+task.spawn(function()
+    while Hub.Running do
+        if Hub.Flags.Claim and os.clock() >= (CL.nextAt or 0) then
+            CL.nextAt = os.clock() + math.max(15, Hub.Flags.ClaimEvery or 60)
+            pcall(claimPass)
+        end
+        task.wait(1)
+    end
+end)
+
+local Hatch = Remotes and Remotes:FindFirstChild("HatchPet")
+local function currentEgg()
+    for _, e in ipairs(EGGS) do if e.key == Hub.Flags.EggKey then return e end end
+    return EGGS[1]
+end
+local function buyEgg()
+    if not Hatch then return false, "ไม่พบ remote HatchPet" end
+    local e = currentEgg()
+    if not e then return false, "ไม่พบข้อมูลฟอง" end
+    local dna = tonumber(P:GetAttribute("DNA")) or 0
+    if dna < e.cost then
+        return false, string.format("DNA ไม่พอ (%d/%d)", math.floor(dna), e.cost)
+    end
+    local ok, res = pcall(function() return Hatch:InvokeServer(e.key) end)
+    if not ok then return false, "err: " .. tostring(res) end
+    if type(res) == "table" and res.ok then
+        Hub.Stats.eggs += 1
+        return true, string.format("%s -> %s %s x%s%s", e.name, tostring(res.rarity or "?"),
+            tostring(res.pet or "?"), tostring(res.count or 1), res.new and " [NEW!]" or "")
+    end
+    return false, tostring(type(res) == "table" and (res.msg or "ไม่สำเร็จ") or res)
+end
+task.spawn(function()
+    while Hub.Running do
+        if Hub.Flags.BuyEgg then
+            pcall(function() local _, msg = buyEgg(); Hub.Msg.Egg = msg end)
+        end
+        task.wait(math.max(0.4, Hub.Flags.EggInterval or 1.5))
+    end
+end)
+
+local EquipPetRemote = Remotes and Remotes:FindFirstChild("EquipPet")
+task.spawn(function()
+    while Hub.Running do
+        if Hub.Flags.AutoEquipBest then
+            pcall(function()
+                if not EquipPetRemote then Hub.Msg.Equip = "ไม่พบ remote EquipPet" return end
+                local ok, res = pcall(function() return EquipPetRemote:InvokeServer("best") end)
+                if not ok then Hub.Msg.Equip = "err: " .. tostring(res); return end
+                if type(res) == "table" and res.ok then
+                    Hub.Stats.equips += 1
+                    local bonus = tonumber(P:GetAttribute("PetBonus")) or 0
+                    Hub.Msg.Equip = string.format("Equip best สำเร็จ | %s | +%.2f POWER",
+                        tostring(P:GetAttribute("PetsEquipped")), bonus)
+                else
+                    Hub.Msg.Equip = tostring(type(res) == "table" and (res.msg or "ไม่สำเร็จ") or res)
+                end
+            end)
+        end
+        task.wait(5)
+    end
+end)
+
+local RollRemote = Remotes and Remotes:FindFirstChild("RollMutation")
+local function rollOnce()
+    if not RollRemote then return false, "ไม่พบ remote RollMutation" end
+    local n = math.floor(tonumber(Hub.Flags.RollCount) or 1)
+    if n ~= 1 and n ~= 5 then n = 1 end
+    local tokens = math.max(0, math.floor(tonumber(P:GetAttribute("RollTokens")) or 0))
+    local dna = math.max(0, math.floor(tonumber(P:GetAttribute("DNA")) or 0))
+    local usable = math.max(0, dna - math.max(0, math.floor(tonumber(Hub.Flags.RollReserve) or 0)))
+    local available = tokens + math.floor(usable / math.max(1, RollCost))
+    if available < n then
+        return false, string.format("ของไม่พอ (Token %d + DNA %d/%d = %d รอบ ต้อง %d)",
+            tokens, usable, RollCost, available, n)
+    end
+    local ok, res = pcall(function() return RollRemote:InvokeServer(n) end)
+    if not ok then return false, "err: " .. tostring(res) end
+    if type(res) ~= "table" or not res.ok then
+        local msg = tostring(type(res) == "table" and (res.msg or "ไม่สำเร็จ") or res)
+        if msg:lower():find("slow") then Hub.SlowUntil = os.clock() + 2.5 end
+        return false, msg
+    end
+    Hub.Stats.rolls += n
+    local notes, bestRank, bestKey = {}, 0, nil
+    for _, v in pairs(res.results or {}) do
+        if type(v) == "table" then
+            local key = tostring(v.key or "?")
+            local rar = tostring(v.rarity or "?")
+            local rank = RARITY_RANK[rar] or 0
+            if rank > bestRank then bestRank, bestKey = rank, rar end
+            if v.new == true then Hub.Stats.rollNew += 1 end
+            if tonumber(v.refund) then Hub.Stats.rollRefund += tonumber(v.refund) end
+            notes[#notes + 1] = string.format("%s(%s)%d★%s", key, rar, tonumber(v.stars) or 1,
+                v.new and " NEW" or "")
+        end
+    end
+    table.sort(notes)
+    local stopMin = RARITY_MIN[Hub.Flags.RollStop]
+    if stopMin and bestRank >= stopMin then
+        Hub.Flags.AutoRoll = false
+        return true, string.format("ได้ %s! หยุดอัตโนมัติ | %s", bestKey, table.concat(notes, ", "))
+    end
+    return true, string.format("%d รอบ: %s", n, table.concat(notes, ", "))
+end
+
+task.spawn(function()
+    while Hub.Running do
+        if Hub.Flags.AutoRoll then
+            pcall(function()
+                if os.clock() < (Hub.SlowUntil or 0) then Hub.Msg.Roll = "รอ cooldown (Slow down!)" return end
+                local _, msg = rollOnce()
+                Hub.Msg.Roll = msg
+            end)
+        end
+        task.wait(math.max(0.5, Hub.Flags.RollInterval or 1.2))
+    end
+end)
+
+local BiteRemote = Remotes and Remotes:FindFirstChild("Bite")
+local CB = { target = nil, stickyUntil = 0, lastBite = 0, lastId = nil }
+local function mobAllowed(m)
+    if m:GetAttribute("IsCritter") ~= true then return true end
+    local anySelected = false
+    for _ in pairs(Hub.Selected) do anySelected = true; break end
+    if not anySelected then return true end
+    local sp = tostring(m:GetAttribute("Species") or m.Name)
+    return Hub.Selected[sp] == true
+end
+local function weakerThanMe(m, myHp, myStage)
+    local hp = tonumber(m:GetAttribute("HP")) or 0
+    local mx = tonumber(m:GetAttribute("MaxHP")) or hp
+    local st = tonumber(m:GetAttribute("Stage")) or 0
+    local limit = myHp * (Hub.Flags.CbRatio or 1)
+    local hpOk = hp > 0 and hp < limit and mx <= limit
+    local stOk = st > 0 and st < myStage
+    local mode = Hub.Flags.CbMode
+    if mode == "Stage ต่ำกว่า" then return stOk end
+    if mode == "HP+Stage" then return hpOk and stOk end
+    return hpOk
+end
+local function pickTarget(me, hrp, myHp, myStage)
+    local now = WS:GetServerTimeNow()
+    if CB.target and CB.target.m and CB.target.m.Parent and os.clock() < CB.stickyUntil then
+        local t = CB.target
+        if t.m:GetAttribute("Dead") ~= true and weakerThanMe(t.m, myHp, myStage) and mobAllowed(t.m) then
+            local ev = tonumber(t.m:GetAttribute("Evolving"))
+            if not (ev and ev > now) and t.r and t.r.Parent
+                and (t.r.Position - hrp.Position).Magnitude <= (Hub.Flags.CbRange or 250) then return t end
+        end
+    end
+    local best, bestScore = nil, nil
+    for _, m in ipairs(CS:GetTagged("Creature")) do
+        if m:IsA("Model") and m ~= me and m:GetAttribute("Dead") ~= true then
+            local isBot = m:GetAttribute("IsBot") == true
+            local isCrit = m:GetAttribute("IsCritter") == true
+            local allowed = false
+            if isBot and Hub.Flags.CbBots then allowed = true end
+            if isCrit and Hub.Flags.CbCritters then allowed = true end
+            if not isBot and not isCrit and Hub.Flags.CbPlayers then allowed = true end
+            if allowed and mobAllowed(m) and weakerThanMe(m, myHp, myStage) then
+                local ev = tonumber(m:GetAttribute("Evolving"))
+                local inv = tonumber(m:GetAttribute("InvisUntil"))
+                local stateOk = not (ev and ev > now) and not (inv and inv > now)
+                if stateOk then
+                    local r = m:FindFirstChild("HumanoidRootPart") or m.PrimaryPart
+                    if r and r:IsA("BasePart") then
+                        local d = (r.Position - hrp.Position).Magnitude
+                        if d <= (Hub.Flags.CbRange or 250) then
+                            local hp = tonumber(m:GetAttribute("HP")) or 0
+                            local st = tonumber(m:GetAttribute("Stage")) or 0
+                            local score = d
+                            if Hub.Flags.CbPriority == "HP น้อยสุด" then score = hp
+                            elseif Hub.Flags.CbPriority == "Stage ต่ำสุด" then score = st * 1000 + d end
+                            if not bestScore or score < bestScore then
+                                bestScore = score
+                                best = { m = m, r = r, id = m:GetAttribute("EntityId"), hp = hp, st = st, d = d }
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    CB.target = best
+    return best
+end
+task.spawn(function()
+    while Hub.Running do
+        if Hub.Flags.Combat then
+            pcall(function()
+                if not BiteRemote then Hub.Msg.Cb = "ไม่พบ remote Bite" return end
+                if os.clock() < (Hub.EvHoldUntil or 0) then Hub.Msg.Cb = "พัก (กำลัง evolve/rebirth)" return end
+                local me, hrp = getHRP()
+                if not hrp then return end
+                if me:GetAttribute("Dead") == true then Hub.Msg.Cb = "รอเกิดใหม่..." return end
+                if me:GetAttribute("Kind") == "Egg" then Hub.Msg.Cb = "ร่างไข่กัดไม่ได้" return end
+                local now = WS:GetServerTimeNow()
+                local ev = tonumber(me:GetAttribute("Evolving"))
+                if ev and ev > now then Hub.Msg.Cb = "รอ evolve เสร็จ..." return end
+                local myHp = tonumber(me:GetAttribute("HP")) or 0
+                local myStage = tonumber(me:GetAttribute("Stage")) or 1
+                local t = pickTarget(me, hrp, myHp, myStage)
+                if not t then Hub.Msg.Cb = "ไม่พบเป้าที่อ่อนกว่า (ตรงตัวกรอง)" return end
+                if CB.lastId ~= nil and t.id ~= CB.lastId then
+                    local prev = CB.target
+                    if prev and prev.m then
+                        local cur = tonumber(prev.m:GetAttribute("HP")) or 0
+                        if cur <= 0 or prev.m:GetAttribute("Dead") == true then Hub.Stats.kills += 1 end
+                    end
+                end
+                local pos = t.r.Position
+                if Hub.Flags.CbWarp then hrp.CFrame = CFrame.lookAt(pos + Vector3.new(0, 0.5, 2.4), pos)
+                else hrp.CFrame = CFrame.lookAt(hrp.Position, pos) end
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
+                CB.stickyUntil = os.clock() + 2
+                if os.clock() - CB.lastBite >= (Hub.Flags.CbGap or 0.6) then
+                    local fired = pcall(function() BiteRemote:FireServer(t.id) end)
+                    if fired then
+                        CB.lastBite = os.clock(); CB.lastId = t.id
+                        Hub.Stats.hits += 1
+                        Hub.Msg.Cb = string.format("กัด %s HP %s Stage %s",
+                            tostring(t.m:GetAttribute("Species") or t.m.Name), tostring(t.hp), tostring(t.st))
+                    else Hub.Msg.Cb = "ยิง Bite ไม่สำเร็จ" end
+                end
+            end)
+        end
+        task.wait(0.1)
+    end
+end)
+
+task.spawn(function()
+    while Hub.Running do
+        local paused = Hub.Flags.Combat and Hub.Flags.CbPauseFarm
+        if Hub.Flags.Farm and not paused then
+            local ok = pcall(function()
+                if os.clock() < (Hub.EvHoldUntil or 0) then Hub.Msg.Orb = "พักวาร์ป (evolve/rebirth)" return end
+                local _, hrp = getHRP()
+                if not hrp then return end
+                if P:GetAttribute("Dead") == true then return end
+                local st = findState()
+                if not st then Hub.Msg.Orb = "หา state ออร์บไม่เจอ (รีสแกน)" return end
+                local now, here = os.clock(), hrp.Position
+                local best, bestId, bestD, total = nil, nil, nil, 0
+                for id, o in pairs(st.orbs) do
+                    total += 1
+                    if typeof(o.pos) == "Vector3" and (o.state == "field" or o.state == "spawn") then
+                        local skipT = S.skipped[id]
+                        if not skipT or now - skipT > 6 then
+                            local d = (o.pos - here).Magnitude
+                            if not bestD or d < bestD then bestD, best, bestId = d, o, id end
+                        end
+                    end
+                end
+                if total == 0 then S.t2 = nil; Hub.Msg.Orb = "ไม่พบออร์บ (รีสแกน)" return end
+                if not best then Hub.Msg.Orb = "ออร์บใกล้ตัวถูกสคิปชั่วคราว" return end
+                warpTo(hrp, best.pos, Hub.Flags.Delay or 0.05)
+                local t0 = os.clock()
+                while os.clock() - t0 < (Hub.Flags.Settle or 0.15) do
+                    if not hrp.Parent then return end
+                    hrp.AssemblyLinearVelocity = Vector3.zero
+                    task.wait(0.03)
+                end
+                if st.orbs[bestId] then S.skipped[bestId] = os.clock() end
+                Hub.Stats.warps += 1
+            end)
+            if not ok then S.t2 = nil end
+        end
+        task.wait(Hub.Flags.Delay or 0.05)
+    end
+end)
+
+task.spawn(function()
+    while Hub.Running do
+        pcall(function()
+            local stage = tonumber(P:GetAttribute("Stage")) or 1
+            local pow = tonumber(P:GetAttribute("Power")) or 0
+            local need = tonumber(P:GetAttribute("Need")) or 0
+            local pct = need > 0 and math.floor(math.min(pow / need, 1) * 100) or 0
+            local rb = myRebirths()
+            local n = 0
+            if S.t2 and S.t2.orbs then for _ in pairs(S.t2.orbs) do n += 1 end end
+            UI:SetStatus(string.format(
+                "S%d/%d %s | Pwr %d/%d (%d%%) | RB%d (เป้า S%d) | EV%d RB%d | กัด%d ฆ่า%d | ออร์บ%d DNA%d ไข่%d Equip%d | โรล%d ใหม่%d | %s | %s | %s | %s | %s | %s",
+                stage, MaxStage, speciesName(stage), math.floor(pow), math.floor(need), pct,
+                rb, topStageFor(rb), Hub.Stats.evolves, Hub.Stats.rebirths,
+                Hub.Stats.hits, Hub.Stats.kills, n, math.floor(tonumber(P:GetAttribute("DNA")) or 0), Hub.Stats.eggs, Hub.Stats.equips,
+                Hub.Stats.rolls, Hub.Stats.rollNew,
+                tostring(Hub.Msg.Cb), tostring(Hub.Msg.Rb), tostring(Hub.Msg.Orb), tostring(Hub.Msg.Egg), tostring(Hub.Msg.Equip), tostring(Hub.Msg.Roll)))
+        end)
+        task.wait(0.8)
+    end
+end)
+
+pushConn(P.Idled:Connect(function()
+    local vu = game:GetService("VirtualUser")
+    pcall(function() vu:CaptureController(); vu:ClickButton2(Vector2.new()) end)
+end))
+
+local FarmTab = UI:Tab("FARM")
+local Sec = FarmTab:Section("AUTO XP ORBS")
+Sec:Toggle({ Name = "Auto เก็บเม็ด XP (วาร์ป)", Desc = "วาร์ปทับออร์บให้ magnet ของเกมเก็บ", Default = false,
+    Callback = function(v) Hub.Flags.Farm = v; Hub.Msg.Orb = v and "กำลังฟาร์ม..." or "หยุดแล้ว" end })
+local EvSec = FarmTab:Section("AUTO EVOLVE")
+EvSec:Toggle({ Name = "Auto Evolve", Desc = "Power เต็มเมื่อไหร่ Evolve เองทันที", Default = false,
+    Callback = function(v) Hub.Flags.AutoEvolve = v; Hub.Msg.Ev = v and "เริ่มเฝ้า Power..." or "ปิดแล้ว" end })
+local RbSec = FarmTab:Section("AUTO REBIRTH")
+RbSec:Toggle({ Name = "Auto Rebirth", Desc = "ถึง Stage TopStage ของจำนวน rebirth + Power เต็ม = Rebirth ทันที", Default = false,
+    Callback = function(v) Hub.Flags.AutoRebirth = v; RB.nextAt = 0; Hub.Msg.Rb = v and "เริ่มเฝ้าเงื่อนไข..." or "ปิดแล้ว" end })
+local ClSec = FarmTab:Section("AUTO CLAIM REWARDS")
+ClSec:Toggle({ Name = "Auto Claim Rewards", Desc = "Daily / Playtime / Quest / Record", Default = false,
+    Callback = function(v) Hub.Flags.Claim = v; CL.nextAt = 0; Hub.Msg.Claim = v and "เริ่มเคลม..." or "ปิดแล้ว" end })
+
+local CbTab = UI:Tab("COMBAT")
+local C1 = CbTab:Section("AUTO ATTACK")
+C1:Toggle({ Name = "Auto Attack Mobs", Desc = "วาร์ปไปกัดเป้าที่อ่อนกว่าเรา (บอท/ม็อบ)", Default = false,
+    Callback = function(v) Hub.Flags.Combat = v; Hub.Msg.Cb = v and "เริ่มสแกนเป้า..." or "หยุดโจมตี" end })
+C1:Toggle({ Name = "Attack Critters", Desc = "โจมตีสัตว์ด้วย (เลือกชนิดได้ด้านล่าง)", Default = true,
+    Callback = function(v) Hub.Flags.CbCritters = v; CB.target = nil end })
+C1:Toggle({ Name = "Attack Players", Desc = "โจมตีผู้เล่นที่อ่อนกว่า", Default = false,
+    Callback = function(v) Hub.Flags.CbPlayers = v; CB.target = nil end })
+local F1 = CbTab:Section("รายชื่อ Critters ที่จะโจมตี")
+F1:Label("ไม่เลือกตัวไหน = โจมตีทุกตัว / เลือก = โจมตีเฉพาะตัวที่เลือก")
+for _, k in ipairs(CRITTERS) do
+    F1:Toggle({ Name = k, Default = false, Callback = function(v) Hub.Selected[k] = v; CB.target = nil end })
+end
+
+local EggTab = UI:Tab("EGGS")
+local E1 = EggTab:Section("AUTO BUY EGGS (DNA)")
+E1:Toggle({ Name = "Auto Buy Eggs", Desc = "ซื้อ/ฟักฟองไข่ด้วย DNA อัตโนมัติ", Default = false,
+    Callback = function(v) Hub.Flags.BuyEgg = v; Hub.Msg.Egg = v and "เริ่มซื้อไข่..." or "หยุดซื้อไข่" end })
+E1:Dropdown({ Name = "เลือกฟองที่ซื้อ", Options = EGG_LABELS, Default = EGG_LABELS[1],
+    Callback = function(v) local e = EGG_BY_LABEL[v]; if e then Hub.Flags.EggKey = e.key; Hub.Msg.Egg = "เลือก " .. e.label end end })
+E1:Slider({ Name = "ซื้อซ้ำทุก", Min = 0.5, Max = 10, Step = 0.5, Default = 1.5, Suffix = "s",
+    Callback = function(v) Hub.Flags.EggInterval = v end })
+E1:Button({ Name = "ซื้อ 1 ฟองตอนนี้", Callback = function()
+    task.spawn(function() local ok, msg = buyEgg(); Hub.Msg.Egg = (ok and "สำเร็จ | " or "") .. msg end)
+end })
+E1:Button({ Name = "ซื้อ 10 ฟองตอนนี้", Callback = function()
+    task.spawn(function()
+        local okN, fail = 0, nil
+        for i = 1, 10 do
+            local ok, msg = buyEgg()
+            if ok then okN += 1 else fail = msg; break end
+            task.wait(0.35)
+        end
+        Hub.Msg.Egg = string.format("ซื้อได้ %d/10 ฟอง%s", okN, fail and (" | " .. fail) or "")
+    end)
+end })
+local E2 = EggTab:Section("AUTO EQUIP BEST PET")
+E2:Toggle({ Name = "Auto Equip Best Pet", Desc = "ให้เซิร์ฟเวอร์เลือก pet แรงที่สุด (ตาม level/bonus) ใส่ให้เอง (เช็คทุก 5 วิ)", Default = false,
+    Callback = function(v) Hub.Flags.AutoEquipBest = v; Hub.Msg.Equip = v and "เริ่มเช็ค pet ที่ดีที่สุด..." or "หยุดแล้ว" end })
+
+local RollTab = UI:Tab("Roll")
+local M1 = RollTab:Section("AUTO ROLL MUTATE")
+M1:Toggle({ Name = "Auto Roll Mutate", Desc = "โรล mutation อัตโนมัติ ใช้ RollTokens ก่อน แล้วค่อย DNA", Default = false,
+    Callback = function(v) Hub.Flags.AutoRoll = v; Hub.Msg.Roll = v and "เริ่มโรล..." or "หยุดโรล" end })
+M1:Dropdown({ Name = "จำนวนต่อครั้ง", Options = { "x1 (120 DNA / 1 Token)", "x5 (600 DNA / 5 Tokens)" },
+    Default = "x1 (120 DNA / 1 Token)",
+    Callback = function(v) Hub.Flags.RollCount = tonumber(v:match("x(%d)")) or 1 end })
+M1:Slider({ Name = "โรลซ้ำทุก", Min = 0.5, Max = 10, Step = 0.5, Default = 1.2, Suffix = "s",
+    Callback = function(v) Hub.Flags.RollInterval = v end })
+M1:Dropdown({ Name = "หยุดเมื่อได้ rarity", Options = RARITY_OPTIONS, Default = "ไม่หยุด",
+    Callback = function(v) Hub.Flags.RollStop = v end })
+
+function Hub.Stop()
+    Hub.Running = false
+    for _, c in ipairs(Hub.Conns) do pcall(function() c:Disconnect() end) end
+    pcall(function() UI:Destroy() end)
+    if getgenv().TwoK == Hub then getgenv().TwoK = nil end
+end
+
+UI:AddSettingsTab()
+UI:Toggle(true)
+end -- ===== จบ [2] =====
